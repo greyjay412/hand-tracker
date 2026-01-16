@@ -1,6 +1,8 @@
 import cv2
 import numpy as np
 import os
+import pyautogui
+import math
 from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
 from mediapipe import Image as mp_Image
@@ -31,7 +33,15 @@ def download_model_if_needed():
             raise
     return model_path
 
+palmIDs = [0, 5, 9, 13, 17]
+
+screenW, screenH = pyautogui.size()
+
+deadZone = 100
+pinchStart = 30
+
 def run_hand_tracking_on_webcam():
+    prevX, prevY = screenW//2, screenH//2
     model_path = download_model_if_needed()
     base_options = python.BaseOptions(model_asset_path=model_path)
     options = vision.HandLandmarkerOptions(
@@ -66,11 +76,42 @@ def run_hand_tracking_on_webcam():
         if detection_result.hand_landmarks:
             h, w, _ = frame.shape
             for hand_landmarks in detection_result.hand_landmarks:
+
+                indexTip = hand_landmarks[8]
+                thumbTip = hand_landmarks[4]
+
                 # Draw landmarks
                 for landmark in hand_landmarks:
                     x = int(landmark.x * w)
                     y = int(landmark.y * h)
                     cv2.circle(frame, (x, y), 5, (0, 255, 0), -1)
+
+                #control cursor
+                cursX = sum(hand_landmarks[id].x for id in palmIDs) / len(palmIDs)
+                cursY = sum(hand_landmarks[id].y for id in palmIDs) / len(palmIDs)
+
+                #map to screen
+                screenX = int(screenW-(cursX*screenW))
+                screenY = int(cursY*screenH)
+
+                dx = screenX-prevX
+                dy = screenY-prevY
+
+                if math.hypot(dx, dy) > deadZone: #not sure if this solved the shakiness but im leaving it here cause Im too lazy to change the variables back
+                    pyautogui.moveTo(screenX,screenY,duration=0)
+
+                cv2.circle(frame, (int(cursX*w),int(cursY*h)), 5, (0,255,0), -1)  
+               
+                #pinch select
+                indexX, indexY = int(indexTip.x*w), int(indexTip.y*h)
+                thumbX, thumbY =  int(thumbTip.x*w), int(thumbTip.y*h)
+
+                indexPinchDist = math.hypot(indexX-thumbX, indexY-thumbY)
+
+                if (pyautogui.mouseDown==False) and (indexPinchDist < pinchStart):
+                    pyautogui.mouseDown(button="left")
+                elif (indexPinchDist > pinchStart) and (pyautogui.mouseDown==True):
+                    pyautogui.mouseUp(button="left")
                 
                 # Draw connections
                 connections = HandLandmarksConnections.HAND_CONNECTIONS
@@ -83,6 +124,8 @@ def run_hand_tracking_on_webcam():
                         end_point = (int(hand_landmarks[end_idx].x * w), 
                                     int(hand_landmarks[end_idx].y * h))
                         cv2.line(frame, start_point, end_point, (0, 255, 0), 2)
+                
+                
 
         cv2.imshow("Hand Tracking", cv2.flip(frame, 1))
         if cv2.waitKey(1) & 0xFF == ord("q"):
