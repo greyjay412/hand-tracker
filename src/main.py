@@ -101,17 +101,6 @@ def run_hand_tracking_on_webcam():
                     pyautogui.moveTo(screenX,screenY,duration=0)
 
                 cv2.circle(frame, (int(cursX*w),int(cursY*h)), 5, (0,255,0), -1)  
-               
-                #pinch select
-                indexX, indexY = int(indexTip.x*w), int(indexTip.y*h)
-                thumbX, thumbY =  int(thumbTip.x*w), int(thumbTip.y*h)
-
-                indexPinchDist = math.hypot(indexX-thumbX, indexY-thumbY)
-
-                if (pyautogui.mouseDown==False) and (indexPinchDist < pinchStart):
-                    pyautogui.mouseDown(button="left")
-                elif (indexPinchDist > pinchStart) and (pyautogui.mouseDown==True):
-                    pyautogui.mouseUp(button="left")
                 
                 # Draw connections
                 connections = HandLandmarksConnections.HAND_CONNECTIONS
@@ -124,6 +113,17 @@ def run_hand_tracking_on_webcam():
                         end_point = (int(hand_landmarks[end_idx].x * w), 
                                     int(hand_landmarks[end_idx].y * h))
                         cv2.line(frame, start_point, end_point, (0, 255, 0), 2)
+
+            #pinch select
+            indexX, indexY = int(indexTip.x*w), int(indexTip.y*h)
+            thumbX, thumbY =  int(thumbTip.x*w), int(thumbTip.y*h)
+
+            indexPinchDist = math.hypot(indexX-thumbX, indexY-thumbY)
+
+            if indexPinchDist < pinchStart:
+                pyautogui.mouseDown(button="left")
+            elif indexPinchDist > pinchStart:
+                pyautogui.mouseUp(button="left")
                 
                 
 
